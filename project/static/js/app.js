@@ -356,18 +356,45 @@ async function loadAdminStats() {
       document.getElementById('admTotalFailed').textContent = stats.total_failed;
       document.getElementById('admTotalBlocked').textContent = stats.total_blocked;
       
-      const blockedList = document.getElementById('blockedIpsList');
-      if (stats.blocked_ips && stats.blocked_ips.length > 0) {
-        blockedList.innerHTML = stats.blocked_ips.map(ip => `
-          <div class="flex items-center justify-between bg-slate-900/90 px-3 py-2 rounded-lg border border-red-500/30">
-            <span class="mono text-xs text-red-300">${ip}</span>
-            <button onclick="unblockTarget('${ip}')" class="px-2 py-1 bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 border border-emerald-500/40 rounded text-[11px] font-medium transition">
-              차단 해제 (Unblock)
-            </button>
-          </div>
-        `).join('');
-      } else {
-        blockedList.innerHTML = '<p class="text-xs text-slate-500 text-center py-2">현재 차단된 IP가 없습니다.</p>';
+      const blockedList = document.getElementById('admBlockedIpList') || document.getElementById('blockedIpsList');
+      if (blockedList) {
+        let itemsHtml = '';
+        
+        // 1. Render Suspended User IDs
+        if (stats.suspended_users && stats.suspended_users.length > 0) {
+          itemsHtml += stats.suspended_users.map(u => `
+            <div class="flex items-center justify-between bg-amber-950/40 px-3 py-2 rounded-lg border border-amber-500/30 mb-2">
+              <div class="flex flex-col pr-2">
+                <span class="mono text-xs font-bold text-amber-300">👤 ID: ${u.student_id} (${u.full_name || '사용자'})</span>
+                <span class="text-[10px] text-amber-400/80">상태: ${u.status} ${u.email ? '| ' + u.email : ''}</span>
+              </div>
+              <button onclick="unblockTarget('${u.student_id}')" class="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 border border-amber-500/40 rounded text-[11px] font-semibold transition whitespace-nowrap">
+                정지 해제
+              </button>
+            </div>
+          `).join('');
+        }
+        
+        // 2. Render Blocked IP Addresses
+        if (stats.blocked_ips && stats.blocked_ips.length > 0) {
+          itemsHtml += stats.blocked_ips.map(ip => `
+            <div class="flex items-center justify-between bg-slate-900/90 px-3 py-2 rounded-lg border border-red-500/30 mb-2">
+              <div class="flex flex-col pr-2">
+                <span class="mono text-xs text-red-300">🌐 IP: ${ip}</span>
+                <span class="text-[10px] text-red-400/80">ML 보안 차단 IP</span>
+              </div>
+              <button onclick="unblockTarget('${ip}')" class="px-2.5 py-1 bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 border border-emerald-500/40 rounded text-[11px] font-semibold transition whitespace-nowrap">
+                IP 해제
+              </button>
+            </div>
+          `).join('');
+        }
+        
+        if (!itemsHtml) {
+          itemsHtml = '<p class="text-xs text-slate-500 text-center py-2">현재 차단된 IP 및 정지된 계정이 없습니다.</p>';
+        }
+        
+        blockedList.innerHTML = itemsHtml;
       }
     }
   } catch (err) {
@@ -464,14 +491,19 @@ function renderPagination(prefix, currentPage, totalPages, totalRecords, callbac
 }
 
 // ============ ADMIN UNBLOCK ACTION ============
-async function submitAdminUnblock() {
-  const target = document.getElementById('unblockInput').value.trim();
-  if (!target) {
-    showToast('warn', '알림', '해제할 IP 주소를 입력하세요.');
+function unblockManualIp() {
+  const el = document.getElementById('manualUnblockIp') || document.getElementById('unblockInput');
+  if (!el || !el.value.trim()) {
+    showToast('warn', '알림', '해제할 IP 주소 또는 Student ID를 입력하세요.');
     return;
   }
-  await unblockTarget(target);
-  document.getElementById('unblockInput').value = '';
+  const target = el.value.trim();
+  unblockTarget(target);
+  el.value = '';
+}
+
+async function submitAdminUnblock() {
+  unblockManualIp();
 }
 
 async function unblockTarget(target) {

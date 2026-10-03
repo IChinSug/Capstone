@@ -974,6 +974,19 @@ def get_admin_stats():
         total_blocked = cursor.fetchone()[0]
         
         conn.close()
+
+        suspended_users = []
+        try:
+            u_conn = sqlite3.connect(USERS_DB_FILE)
+            u_cursor = u_conn.cursor()
+            u_cursor.execute("SELECT student_id, full_name, email, status FROM users WHERE status IN ('SUSPENDED', 'LOCKED', 'INACTIVE', 'DISABLED') ORDER BY student_id ASC")
+            suspended_users = [
+                {"student_id": row[0], "full_name": row[1] or "", "email": row[2] or "", "status": row[3]}
+                for row in u_cursor.fetchall()
+            ]
+            u_conn.close()
+        except Exception as u_err:
+            print(f"[!] Querying suspended users failed: {u_err}")
         
         return jsonify({
             "status": "SUCCESS",
@@ -982,6 +995,7 @@ def get_admin_stats():
             "total_failed": total_failed,
             "total_blocked": total_blocked,
             "blocked_ips": sorted(list(BLOCKED_ENTITIES)),
+            "suspended_users": suspended_users,
             "active_window_size": len(recent_attempts)
         })
     except Exception as e:
@@ -1002,6 +1016,8 @@ def admin_unblock():
     global recent_attempts
     BLOCKED_ENTITIES.discard(target)
     
+    update_user_status_in_db(target, "ACTIVE")
+    
     recent_attempts[:] = [
         l for l in recent_attempts 
         if l.get("ip_address") != target and l.get("student_id") != target
@@ -1011,7 +1027,7 @@ def admin_unblock():
     
     return jsonify({
         "status": "SUCCESS",
-        "message": f"요청하신 '{target}' 대상의 차단이 성공적으로 해제되었습니다!",
+        "message": f"요청하신 '{target}' 대상의 차단/정지 상태가 성공적으로 해제되었습니다!",
         "unblocked_target": target,
         "remaining_blocked": sorted(list(BLOCKED_ENTITIES))
     })
