@@ -207,7 +207,7 @@ def execute_brute_force(target_id=None, attacker_ip="45.33.32.156", attempts=5):
     for i in range(1, attempts + 1):
         code, resp = send_real_request(target_id, f"WrongPass_{i}!", attacker_ip, user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
         results.append({"step": i, "status": code, "response": resp})
-        time.sleep(0.1)
+        time.sleep(0.02)
     
     # Check status with correct password
     code, resp = send_real_request(target_id, "Password2026", "192.168.1.200")
@@ -223,7 +223,7 @@ def execute_password_spraying(attacker_ip="198.51.100.42", common_password="Pass
     for victim in targets:
         code, resp = send_real_request(victim, common_password, attacker_ip, user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
         results.append({"victim": victim, "status": code, "response": resp})
-        time.sleep(0.15)
+        time.sleep(0.02)
     return results
 
 def execute_ip_rotation(proxy_ips=None, spray_password="SprayPassword2026!", num_targets=5, targets=None):
@@ -238,7 +238,7 @@ def execute_ip_rotation(proxy_ips=None, spray_password="SprayPassword2026!", num
         proxy_ip = proxy_ips[i % len(proxy_ips)]
         code, resp = send_real_request(victim, spray_password, proxy_ip, user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
         results.append({"victim": victim, "proxy_ip": proxy_ip, "status": code, "response": resp})
-        time.sleep(0.15)
+        time.sleep(0.02)
     return results
 
 def execute_bot_traffic(bot_agent="Hydra/9.2 (Automated Security Bot Engine)", target_id=None, bot_ips=None):
@@ -252,10 +252,10 @@ def execute_bot_traffic(bot_agent="Hydra/9.2 (Automated Security Bot Engine)", t
     for b_ip in bot_ips:
         code, resp = send_real_request(target_id, "BotAttemptPass!", b_ip, user_agent=bot_agent)
         results.append({"bot_ip": b_ip, "status": code, "response": resp})
-        time.sleep(0.15)
+        time.sleep(0.02)
     
-    # Check target account status
-    code, resp = send_real_request(target_id, "Password2026", "192.168.1.201")
+    # Check target account status (maintain bot_agent User-Agent so bot classification is preserved)
+    code, resp = send_real_request(target_id, "Password2026", "192.168.1.201", user_agent=bot_agent)
     results.append({"step": "check_status", "status": code, "response": resp})
     return results
 

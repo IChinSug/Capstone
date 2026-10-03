@@ -1,7 +1,7 @@
 [
   {
     "student_id": "20260001",
-    "password": "scrypt:32768:8:1$IOUVdSJUCxKt1Gjv$be3cc8c582885231161ea76f5a3a012d6d00526990cea39867060d0d08401830078b390d03db4adc3defc77eef8381c871ecf0855ac186df2e467b8e9709e0c1",
+    "password": "scrypt:32768:8:1$wLYcrhw5iozUYsaa$de96f2d9fe1939c1a377e426ad4b5be66ef6931c86cf8d42e9c49be7d6e2ed777d89ae216bef95c02952256ab3ac362263fcf3c5fbc4a6c6e3ece04bffd6eba4",
     "full_name": "김철수",
     "email": "student1@school.edu.kr",
     "role": "Student",
@@ -10,7 +10,7 @@
   },
   {
     "student_id": "20260002",
-    "password": "scrypt:32768:8:1$4O80MX4NXFnYMeLP$7b464b9dc40a62678d354d0096d7e064d4a5de0ee40cd7f47eb3f181077d6b8e1b343cb6d6093ab690137567dc5784597af91b7fd05b369d7d8b6024c65de89f",
+    "password": "scrypt:32768:8:1$v306qLWFiOGAnwUY$61fdf1b7fd7024c0fa430bc77a4fe4cd68373eacb217193893921f6741529aeeb97f9258971e3a6655456d8d03f70b609acf62385bfcf57de92b5c49d9244c4c",
     "full_name": "이영희",
     "email": "student2@school.edu.kr",
     "role": "Student",
