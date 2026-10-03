@@ -1,7 +1,7 @@
 [
   {
     "student_id": "20260001",
-    "password": "scrypt:32768:8:1$tmVu17PML0Owz9k6$eff02bb95e5ede8b180f20c841c501ca9ddcb26a4b4fce5df2cff81d2c05f0a07292301f798aa5eee02eaed2c3fd1587f84a17beaa9fbd5f4e08a82752cac917",
+    "password": "scrypt:32768:8:1$IOUVdSJUCxKt1Gjv$be3cc8c582885231161ea76f5a3a012d6d00526990cea39867060d0d08401830078b390d03db4adc3defc77eef8381c871ecf0855ac186df2e467b8e9709e0c1",
     "full_name": "김철수",
     "email": "student1@school.edu.kr",
     "role": "Student",
@@ -10,7 +10,7 @@
   },
   {
     "student_id": "20260002",
-    "password": "scrypt:32768:8:1$EPkMDXoRyRUdwnZs$1f815836fb94da762af23e44c93b51228b19ddcc944b8afe93e985fc6dd527ee3e677922b89c7de6f3e6b8a23d57e69a2459773594481c0cfed89a9f5d3a87ea",
+    "password": "scrypt:32768:8:1$4O80MX4NXFnYMeLP$7b464b9dc40a62678d354d0096d7e064d4a5de0ee40cd7f47eb3f181077d6b8e1b343cb6d6093ab690137567dc5784597af91b7fd05b369d7d8b6024c65de89f",
     "full_name": "이영희",
     "email": "student2@school.edu.kr",
     "role": "Student",
@@ -23,7 +23,7 @@
     "full_name": "박민수",
     "email": "student3@school.edu.kr",
     "role": "Student",
-    "status": "ACTIVE",
+    "status": "SUSPENDED",
     "created_at": "2026-01-15T08:00:00Z"
   },
   {
@@ -86,7 +86,7 @@
     "full_name": "최지후",
     "email": "student6@school.edu.kr",
     "role": "Student",
-    "status": "ACTIVE",
+    "status": "SUSPENDED",
     "created_at": "2026-01-15T09:00:00Z"
   },
   {
@@ -221,7 +221,7 @@
     "full_name": "임서윤",
     "email": "student21@school.edu.kr",
     "role": "Student",
-    "status": "ACTIVE",
+    "status": "SUSPENDED",
     "created_at": "2026-01-16T00:00:00Z"
   },
   {
@@ -410,7 +410,7 @@
     "full_name": "서서준",
     "email": "student42@school.edu.kr",
     "role": "Student",
-    "status": "ACTIVE",
+    "status": "SUSPENDED",
     "created_at": "2026-01-16T21:00:00Z"
   },
   {
@@ -428,7 +428,7 @@
     "full_name": "권지호",
     "email": "student44@school.edu.kr",
     "role": "Student",
-    "status": "ACTIVE",
+    "status": "SUSPENDED",
     "created_at": "2026-01-16T23:00:00Z"
   },
   {
@@ -707,7 +707,7 @@
     "full_name": "권주원",
     "email": "student75@school.edu.kr",
     "role": "Student",
-    "status": "ACTIVE",
+    "status": "SUSPENDED",
     "created_at": "2026-01-18T06:00:00Z"
   },
   {
@@ -725,7 +725,7 @@
     "full_name": "신하윤",
     "email": "student77@school.edu.kr",
     "role": "Student",
-    "status": "ACTIVE",
+    "status": "SUSPENDED",
     "created_at": "2026-01-18T08:00:00Z"
   },
   {
@@ -734,7 +734,7 @@
     "full_name": "서지유",
     "email": "student78@school.edu.kr",
     "role": "Student",
-    "status": "ACTIVE",
+    "status": "SUSPENDED",
     "created_at": "2026-01-18T09:00:00Z"
   },
   {
@@ -743,7 +743,7 @@
     "full_name": "한시우",
     "email": "student79@school.edu.kr",
     "role": "Student",
-    "status": "ACTIVE",
+    "status": "SUSPENDED",
     "created_at": "2026-01-18T10:00:00Z"
   },
   {
@@ -779,7 +779,7 @@
     "full_name": "오지호",
     "email": "student83@school.edu.kr",
     "role": "Student",
-    "status": "ACTIVE",
+    "status": "SUSPENDED",
     "created_at": "2026-01-18T14:00:00Z"
   },
   {
@@ -896,7 +896,7 @@
     "full_name": "임윤서",
     "email": "student96@school.edu.kr",
     "role": "Student",
-    "status": "ACTIVE",
+    "status": "SUSPENDED",
     "created_at": "2026-01-19T03:00:00Z"
   },
   {
@@ -1130,7 +1130,7 @@
     "full_name": "오윤서",
     "email": "student122@school.edu.kr",
     "role": "Student",
-    "status": "ACTIVE",
+    "status": "SUSPENDED",
     "created_at": "2026-01-20T05:00:00Z"
   },
   {
@@ -1148,7 +1148,7 @@
     "full_name": "김서준",
     "email": "student124@school.edu.kr",
     "role": "Student",
-    "status": "ACTIVE",
+    "status": "SUSPENDED",
     "created_at": "2026-01-20T07:00:00Z"
   },
   {
@@ -1184,7 +1184,7 @@
     "full_name": "이하준",
     "email": "student128@school.edu.kr",
     "role": "Student",
-    "status": "ACTIVE",
+    "status": "SUSPENDED",
     "created_at": "2026-01-20T11:00:00Z"
   },
   {
@@ -1211,7 +1211,7 @@
     "full_name": "최윤서",
     "email": "student131@school.edu.kr",
     "role": "Student",
-    "status": "ACTIVE",
+    "status": "SUSPENDED",
     "created_at": "2026-01-20T14:00:00Z"
   },
   {
@@ -1679,7 +1679,7 @@
     "full_name": "최주원",
     "email": "student183@school.edu.kr",
     "role": "Student",
-    "status": "ACTIVE",
+    "status": "SUSPENDED",
     "created_at": "2026-01-22T18:00:00Z"
   },
   {
@@ -1688,7 +1688,7 @@
     "full_name": "강하은",
     "email": "student184@school.edu.kr",
     "role": "Student",
-    "status": "ACTIVE",
+    "status": "SUSPENDED",
     "created_at": "2026-01-22T19:00:00Z"
   },
   {

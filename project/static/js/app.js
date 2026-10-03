@@ -1,4 +1,14 @@
-// ============ STATE MANAGEMENT ============
+// ============ STATE MANAGEMENT & SECURITY UTILITIES ============
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 const state = {
   currentUser: null,
   activeAdminFilter: 'ALL',
@@ -818,10 +828,32 @@ function updateRuleUI(elemId, isValid, labelText) {
   }
 }
 
+function show2FaAlert(type, message) {
+  const alertEl = document.getElementById('twoFaAlertMsg');
+  if (!alertEl) return;
+  if (!message) {
+    alertEl.classList.add('hidden');
+    return;
+  }
+  alertEl.className = 'p-3 rounded-lg text-xs font-semibold mb-4 border transition fade-in';
+  if (type === 'error') {
+    alertEl.classList.add('bg-red-500/20', 'border-red-500/40', 'text-red-300');
+  } else if (type === 'warn') {
+    alertEl.classList.add('bg-amber-500/20', 'border-amber-500/40', 'text-amber-300');
+  } else if (type === 'success') {
+    alertEl.classList.add('bg-emerald-500/20', 'border-emerald-500/40', 'text-emerald-300');
+  } else {
+    alertEl.classList.add('bg-blue-500/20', 'border-blue-500/40', 'text-blue-300');
+  }
+  alertEl.textContent = message;
+  alertEl.classList.remove('hidden');
+}
+
 function open2FAModal(emailOrId = '') {
   const modal = document.getElementById('twoFactorModal');
   if (!modal) return;
   modal.classList.remove('hidden');
+  show2FaAlert('', '');
   document.getElementById('2faStep1').classList.remove('hidden');
   document.getElementById('2faStep2').classList.add('hidden');
   
@@ -849,17 +881,22 @@ async function request2FaOtp() {
   const email = document.getElementById('twoFaEmail').value.trim();
 
   if (!student_id) {
-    showToast('warn', '입력 오류', '사용자 아이디 / 학번을 입력해 주세요.');
+    const msg = '사용자 아이디 / 학번을 입력해 주세요.';
+    show2FaAlert('warn', msg);
+    showToast('warn', '입력 오류', msg);
     return;
   }
   if (!email) {
-    showToast('warn', '입력 오류', '등록된 이메일 주소를 입력해 주세요.');
+    const msg = '등록된 이메일 주소를 입력해 주세요.';
+    show2FaAlert('warn', msg);
+    showToast('warn', '입력 오류', msg);
     return;
   }
 
   const btn = document.getElementById('btnRequestOtp');
   btn.disabled = true;
   btn.innerText = '검증 및 전송 중...';
+  show2FaAlert('info', 'OTP 코드를 이메일로 전송 중입니다...');
 
   try {
     const res = await fetch('/api/user/2fa/request-otp', {
@@ -869,7 +906,9 @@ async function request2FaOtp() {
     });
     const data = await res.json();
     if (res.ok && data.status === 'SUCCESS') {
-      showToast('info', 'OTP 코드 발송 완료!', data.message);
+      const msg = data.message || 'OTP 인증 코드가 전송되었습니다.';
+      show2FaAlert('success', msg);
+      showToast('info', 'OTP 코드 발송 완료!', msg);
       document.getElementById('2faStep1').classList.add('hidden');
       document.getElementById('2faStep2').classList.remove('hidden');
       if (data.mock_otp) {
@@ -878,9 +917,12 @@ async function request2FaOtp() {
         document.getElementById('twoFaOtpCode').value = data.mock_otp;
       }
     } else {
-      showToast('error', '인증 정보 불일치', data.message || '학번과 이메일 정보가 일치하지 않습니다.');
+      const msg = data.message || '학번과 이메일 정보가 일치하지 않습니다.';
+      show2FaAlert('error', msg);
+      showToast('error', '인증 정보 불일치', msg);
     }
   } catch (err) {
+    show2FaAlert('error', '서버 연결 오류: ' + err.message);
     showToast('error', '연결 오류', err.message);
   } finally {
     btn.disabled = false;
@@ -895,12 +937,15 @@ async function verify2FaAndResetPassword() {
   const new_password = document.getElementById('twoFaNewPassword').value.trim();
 
   if (!otp_code || otp_code.length !== 6) {
-    showToast('warn', '입력 오류', '6자리 OTP 코드를 입력해 주세요.');
+    const msg = '6자리 OTP 코드를 입력해 주세요.';
+    show2FaAlert('warn', msg);
+    showToast('warn', '입력 오류', msg);
     return;
   }
   
   const pwdCheck = validatePasswordStrength(new_password);
   if (!pwdCheck.valid) {
+    show2FaAlert('warn', pwdCheck.message);
     showToast('warn', '비밀번호 규칙 오류', pwdCheck.message);
     return;
   }
@@ -908,6 +953,7 @@ async function verify2FaAndResetPassword() {
   const btn = document.getElementById('btnVerifyReset');
   btn.disabled = true;
   btn.innerText = '변경 및 검증 중...';
+  show2FaAlert('info', '비밀번호 변경 및 계정 정지 해제 검증 중...');
 
   try {
     const res = await fetch('/api/user/2fa/verify-unsuspend', {
@@ -922,7 +968,9 @@ async function verify2FaAndResetPassword() {
     });
     const data = await res.json();
     if (res.ok && data.status === 'SUCCESS') {
-      showToast('success', '인증 및 비밀번호 변경 완료!', data.message);
+      const msg = data.message || '인증 및 비밀번호 변경이 성공적으로 완료되었습니다!';
+      show2FaAlert('success', msg);
+      showToast('success', '인증 및 비밀번호 변경 완료!', msg);
       close2FAModal();
       // Auto-fill login form with new credentials and trigger login!
       if (data.student_id) {
@@ -938,9 +986,12 @@ async function verify2FaAndResetPassword() {
         }
       }, 500);
     } else {
-      showToast('error', '인증 실패', data.message || '잘못된 코드이거나 비밀번호 규칙을 충족하지 않습니다.');
+      const msg = data.message || '잘못된 코드이거나 비밀번호 규칙을 충족하지 않습니다.';
+      show2FaAlert('error', msg);
+      showToast('error', '인증 실패', msg);
     }
   } catch (err) {
+    show2FaAlert('error', '서버 연결 오류: ' + err.message);
     showToast('error', '연결 오류', err.message);
   } finally {
     btn.disabled = false;

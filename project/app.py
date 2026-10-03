@@ -255,14 +255,20 @@ def sync_users_to_json_csv():
                 "created_at": r[6] if len(r) > 6 and r[6] else datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
             })
             
-        with open(USERS_JSON_FILE, "w", encoding="utf-8") as f:
-            json.dump(users_list, f, ensure_ascii=False, indent=2)
-            
-        fieldnames = ["student_id", "password", "full_name", "email", "role", "status", "created_at"]
-        with open(USERS_CSV_FILE, "w", encoding="utf-8-sig", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerows(users_list)
+        try:
+            with open(USERS_JSON_FILE, "w", encoding="utf-8") as f:
+                json.dump(users_list, f, ensure_ascii=False, indent=2)
+        except Exception as json_err:
+            print(f"[!] users.json write error: {json_err}")
+
+        try:
+            fieldnames = ["student_id", "password", "full_name", "email", "role", "status", "created_at"]
+            with open(USERS_CSV_FILE, "w", encoding="utf-8-sig", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(users_list)
+        except Exception as csv_err:
+            print(f"[ℹ] Notice: users.csv file write skipped (file may be open): {csv_err}")
     except Exception as e:
         print(f"[!] User sync error: {e}")
 
@@ -454,9 +460,9 @@ def favicon():
 def is_known_user_ip(student_id, ip_address):
     """
     Checks if student_id has previously logged in successfully from ip_address
-    OR if current IP is local/legitimate network.
+    based strictly on historical SUCCESS audit logs.
     """
-    if not student_id:
+    if not student_id or not ip_address:
         return False
     try:
         conn = sqlite3.connect(DB_FILE)
@@ -471,9 +477,6 @@ def is_known_user_ip(student_id, ip_address):
             return True
     except Exception as e:
         print(f"[!] is_known_user_ip query error: {e}")
-
-    if ip_address in ("127.0.0.1", "::1", "localhost") or ip_address.startswith("192.168.") or ip_address.startswith("10.0."):
-        return True
 
     return False
 
@@ -506,53 +509,58 @@ def login():
             "message": "⚠️ [보안 제한] 짧은 시간에 너무 많은 로그인 요청이 발생했습니다. 1분 후 다시 시도해 주세요."
         }), 429
 
+    is_known = is_known_user_ip(student_id, ip_address)
+    is_2fa_rescued = (student_id in VERIFIED_2FA_RESCUED_ACCOUNTS and now_ts < VERIFIED_2FA_RESCUED_ACCOUNTS[student_id])
+
     # 0. A. 사용자 계정 정지 (SUSPENDED / INACTIVE / DISABLED) 검증
     user_rec = get_user_from_db(student_id)
     if user_rec and user_rec.get("status") in ("SUSPENDED", "INACTIVE", "DISABLED", "LOCKED"):
-        features = extract_incoming_features(student_id, ip_address, user_agent, now_ts)
-        features_df = pd.DataFrame([features], columns=FEATURE_COLS)
-        computed_risk = round(ml_detector.predict_proba(features_df)[0][1] * 100, 1)
-        risk_score_val = max(computed_risk, 85.0)
-        att_type = classify_attack_type(features)
-        save_log_entry(student_id, ip_address, "ACCOUNT_SUSPENDED", user_agent, risk_score_val, 1, attack_type=att_type)
-
-        user_email = user_rec.get("email", "").strip()
-        has_registered_email = bool(user_email and "@" in user_email)
-
-        if has_registered_email:
-            return jsonify({
-                "status": "ACCOUNT_SUSPENDED",
-                "can_2fa_recover": True,
-                "student_id": student_id,
-                "email": user_email,
-                "risk_score": f"{risk_score_val}%",
-                "attack_type": att_type,
-                "message": f"⚠️ [보안 제한] '{student_id}' 계정은 정지/비활성화(SUSPENDED) 상태입니다. 이메일 2FA 인증으로 계정을 복구하고 비밀번호를 변경하세요."
-            }), 403
+        # Exception Rule: If attempting login from known IP OR user verified 2FA, AND enters correct password
+        if (is_known or is_2fa_rescued) and check_user_password(user_rec.get("password"), password):
+            update_user_status_in_db(student_id, "ACTIVE")
+            user_rec["status"] = "ACTIVE"
         else:
-            return jsonify({
-                "status": "ACCOUNT_SUSPENDED",
-                "can_2fa_recover": False,
-                "student_id": student_id,
-                "risk_score": f"{risk_score_val}%",
-                "attack_type": att_type,
-                "message": f"⚠️ [보안 제한] '{student_id}' 계정은 정지/비활성화 상태입니다. (등록된 이메일 주소가 없습니다.)"
-            }), 403
+            features = extract_incoming_features(student_id, ip_address, user_agent, now_ts)
+            features_df = pd.DataFrame([features], columns=FEATURE_COLS)
+            computed_risk = round(ml_detector.predict_proba(features_df)[0][1] * 100, 1)
+            risk_score_val = max(computed_risk, 85.0)
+            att_type = classify_attack_type(features)
+            save_log_entry(student_id, ip_address, "ACCOUNT_SUSPENDED", user_agent, risk_score_val, 1, attack_type=att_type)
+
+            user_email = user_rec.get("email", "").strip()
+            has_registered_email = bool(user_email and "@" in user_email)
+
+            if has_registered_email:
+                return jsonify({
+                    "status": "ACCOUNT_SUSPENDED",
+                    "can_2fa_recover": True,
+                    "student_id": student_id,
+                    "email": user_email,
+                    "risk_score": f"{risk_score_val}%",
+                    "attack_type": att_type,
+                    "message": f"⚠️ [보안 제한] '{student_id}' 계정은 정지/비활성화(SUSPENDED) 상태입니다. 이메일 2FA 인증으로 계정을 복구하고 비밀번호를 변경하세요."
+                }), 403
+            else:
+                return jsonify({
+                    "status": "ACCOUNT_SUSPENDED",
+                    "can_2fa_recover": False,
+                    "student_id": student_id,
+                    "risk_score": f"{risk_score_val}%",
+                    "attack_type": att_type,
+                    "message": f"⚠️ [보안 제한] '{student_id}' 계정은 정지/비활성화 상태입니다. (등록된 이메일 주소가 없습니다.)"
+                }), 403
 
     # 0. B. 활성 차단 IP (BLOCKED_ENTITIES) 검증
     if ip_address in BLOCKED_ENTITIES:
-        is_2fa_rescued = (student_id in VERIFIED_2FA_RESCUED_ACCOUNTS and now_ts < VERIFIED_2FA_RESCUED_ACCOUNTS[student_id])
-
-        # Admin Rescue Check: 올바른 Admin 계정 정보로 로그인 시 차단된 IP 자동 해제
+        # Admin Rescue Check: 올바른 Admin 계정 정보로 로그인 (IP 차단은 그대로 유지)
         if user_rec and user_rec.get("role") == "Admin" and check_user_password(user_rec.get("password"), password):
-            BLOCKED_ENTITIES.discard(ip_address)
             recent_attempts[:] = [l for l in recent_attempts if l.get("ip_address") != ip_address]
-            save_log_entry(student_id, ip_address, "ADMIN_RESCUE_UNBLOCK", user_agent, 0.0, 0, attack_type="LEGITIMATE")
             full_name = user_rec.get("full_name", student_id)
+            save_log_entry(student_id, ip_address, "ADMIN_RESCUE_LOGIN", user_agent, 0.0, 0, attack_type="LEGITIMATE")
             save_log_entry(student_id, ip_address, "SUCCESS", user_agent, 0.0, 0, attack_type="LEGITIMATE")
             return jsonify({
                 "status": "SUCCESS",
-                "message": f"🔑 [Admin Rescue Mode] IP 차단이 자동 해제되어 정상 로그인되었습니다! 환영합니다 {full_name}님.",
+                "message": f"🔑 [Admin Rescue Mode] Admin 권한으로 정상 로그인되었습니다! (IP 차단 목록은 수동 해제 전까지 유지됨) 환영합니다 {full_name}님.",
                 "risk_score": "0.0%",
                 "model_flag": "LEGITIMATE",
                 "user": {
@@ -564,14 +572,14 @@ def login():
                 }
             }), 200
 
-        # PER-ACCOUNT EXEMPTION RULE:
-        # If account status is ACTIVE AND correct password for THIS specific account is entered AND (IP is known OR user verified 2FA):
-        elif user_rec and user_rec.get("status") == "ACTIVE" and check_user_password(user_rec.get("password"), password) and (is_known_user_ip(student_id, ip_address) or is_2fa_rescued):
-            BLOCKED_ENTITIES.discard(ip_address)
+        # KNOWN IP / 2FA EXEMPTION RULE FOR USER:
+        # If account status is ACTIVE AND correct password entered AND (IP is known for THIS student OR user verified 2FA):
+        # NOTE: IP MUST NOT BE REMOVED FROM BLOCKED_ENTITIES PER REQUIREMENT!
+        elif user_rec and user_rec.get("status") == "ACTIVE" and check_user_password(user_rec.get("password"), password) and (is_known or is_2fa_rescued):
             recent_attempts[:] = [l for l in recent_attempts if l.get("student_id") != student_id]
             status = "SUCCESS"
             full_name = user_rec.get("full_name", student_id)
-            message = f"🔑 [계정 복구 로그인 성공] '{student_id}' 계정으로 새로운 비밀번호로 성공적으로 로그인되었습니다!"
+            message = f"🔑 [이전 접속 IP 로그인 성공] '{student_id}' 계정으로 성공적으로 로그인되었습니다! (IP 차단 목록은 유지됨)"
             save_log_entry(student_id, ip_address, "2FA_ACCOUNT_SCOPED_LOGIN", user_agent, 0.0, 0, attack_type="LEGITIMATE")
             save_log_entry(student_id, ip_address, "SUCCESS", user_agent, 0.0, 0, attack_type="LEGITIMATE")
             return jsonify({
@@ -588,6 +596,8 @@ def login():
                 }
             }), 200
 
+        # UNKNOWN IP or WRONG PASSWORD under BLOCKED IP condition:
+        # Always block login and return HTTP 429 error!
         else:
             time.sleep(0.3)
             recent_attempts.append({"student_id": student_id, "ip_address": ip_address, "status": "FAILED", "time": now_ts})
@@ -603,7 +613,7 @@ def login():
                 "risk_score": f"{risk_score_val}%",
                 "attack_type": att_type,
                 "action_taken": f"IP 차단 유지됨: {ip_address}",
-                "message": f"⚠️ [보안 차단] IP 주소가 차단된 상태입니다! 2FA 복구가 불가능합니다."
+                "message": f"⚠️ [보안 차단] IP 주소가 차단된 상태이며, 이전 접속 이력이 없는 미인증 IP입니다. (등록된 계정이라도 미인증 IP에서는 로그인할 수 없습니다.)"
             }), 429
 
     # A. 실시간 6차원 특징 벡터 계산
@@ -834,13 +844,12 @@ def verify_unsuspend_2fa():
     # 2. Register student_id in VERIFIED_2FA_RESCUED_ACCOUNTS (valid for 15 mins)
     VERIFIED_2FA_RESCUED_ACCOUNTS[expected_student_id] = now_ts + 900
 
-    # 3. Discard IP from BLOCKED_ENTITIES for this verified user & reset buffer
+    # 3. Clear recent failed attempts for this verified user & log event
     ip_address = request.headers.get("X-Forwarded-For", request.remote_addr)
     if "," in ip_address:
         ip_address = ip_address.split(",")[0].strip()
         
-    BLOCKED_ENTITIES.discard(ip_address)
-    recent_attempts[:] = [l for l in recent_attempts if l.get("student_id") != expected_student_id and l.get("ip_address") != ip_address]
+    recent_attempts[:] = [l for l in recent_attempts if l.get("student_id") != expected_student_id]
 
     # 4. Log event
     user_agent = request.headers.get("User-Agent", "Unknown")
@@ -1100,11 +1109,12 @@ def add_new_user():
             conn.close()
             return jsonify({"error": f"'{student_id}' ID를 가진 사용자가 이미 존재합니다."}), 400
             
+        hashed_pwd = generate_password_hash(password)
         created_at = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         cursor.execute('''
             INSERT INTO users (student_id, password, full_name, email, role, status, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (student_id, password, full_name, email, role, status, created_at))
+        ''', (student_id, hashed_pwd, full_name, email, role, status, created_at))
         conn.commit()
         conn.close()
         
